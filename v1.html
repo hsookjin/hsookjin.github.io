@@ -1,0 +1,420 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>화투 카드 인식기</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Arial', sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+        
+        .container {
+            max-width: 600px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 20px;
+            padding: 30px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.3);
+        }
+        
+        h1 {
+            text-align: center;
+            color: #764ba2;
+            font-size: 32px;
+            margin-bottom: 20px;
+        }
+        
+        .warning {
+            background: #fff3cd;
+            border: 2px solid #ffc107;
+            border-radius: 10px;
+            padding: 20px;
+            margin-bottom: 20px;
+        }
+        
+        .warning h3 {
+            color: #856404;
+            margin-bottom: 10px;
+            font-size: 20px;
+        }
+        
+        .warning p {
+            color: #856404;
+            line-height: 1.6;
+            margin-bottom: 10px;
+        }
+        
+        .warning ol {
+            margin-left: 20px;
+            color: #856404;
+        }
+        
+        .warning li {
+            margin-bottom: 8px;
+            line-height: 1.5;
+        }
+        
+        .warning strong {
+            color: #d32f2f;
+        }
+        
+        .status {
+            text-align: center;
+            padding: 15px;
+            background: #e3f2fd;
+            border-radius: 10px;
+            margin-bottom: 20px;
+            font-size: 18px;
+            color: #1976d2;
+        }
+        
+        .camera-btn {
+            width: 100%;
+            padding: 20px;
+            font-size: 24px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            border-radius: 15px;
+            cursor: pointer;
+            margin-bottom: 20px;
+            font-weight: bold;
+            transition: transform 0.2s;
+        }
+        
+        .camera-btn:active {
+            transform: scale(0.98);
+        }
+        
+        #preview {
+            width: 100%;
+            max-height: 400px;
+            object-fit: contain;
+            border-radius: 10px;
+            margin-bottom: 20px;
+            display: none;
+            border: 3px solid #667eea;
+        }
+        
+        #loading {
+            text-align: center;
+            font-size: 20px;
+            color: #764ba2;
+            margin: 20px 0;
+            display: none;
+        }
+        
+        .results {
+            margin-top: 20px;
+            display: none;
+        }
+        
+        .card-item {
+            background: #f0f0f0;
+            padding: 15px;
+            border-radius: 10px;
+            margin-bottom: 10px;
+            font-size: 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .card-number {
+            font-weight: bold;
+            color: #667eea;
+            font-size: 28px;
+        }
+        
+        .total {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 25px;
+            border-radius: 15px;
+            text-align: center;
+            margin-top: 20px;
+        }
+        
+        .total-label {
+            font-size: 24px;
+            margin-bottom: 10px;
+        }
+        
+        .total-number {
+            font-size: 56px;
+            font-weight: bold;
+        }
+        
+        .code-box {
+            background: #f5f5f5;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            padding: 10px;
+            font-family: monospace;
+            font-size: 14px;
+            overflow-x: auto;
+            margin: 10px 0;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🎴 화투 카드 인식기</h1>
+        
+        <div class="warning">
+            <h3>⚠️ Claude.ai에서는 작동하지 않습니다</h3>
+            <p>Claude.ai의 보안 정책 때문에 외부 Teachable Machine 모델을 불러올 수 없습니다.</p>
+            <p><strong>이 코드를 사용하려면 다음 방법을 따라주세요:</strong></p>
+            <ol>
+                <li>아래 코드 전체를 복사</li>
+                <li>컴퓨터 메모장(NotePad)에 붙여넣기</li>
+                <li><strong>index.html</strong>로 저장 (확장자 .html 필수!)</li>
+                <li>저장한 파일을 더블클릭해서 크롬/엣지 브라우저로 열기</li>
+                <li>일반 브라우저에서는 정상 작동합니다!</li>
+            </ol>
+        </div>
+        
+        <div class="status" id="status">일반 브라우저에서 열어주세요</div>
+        
+        <input type="file" id="imageInput" accept="image/*" capture="environment" style="display: none;">
+        <button class="camera-btn" id="cameraBtn" onclick="document.getElementById('imageInput').click()">
+            📷 카메라로 촬영하기
+        </button>
+        
+        <img id="preview" alt="미리보기">
+        <div id="loading">🔍 카드를 분석하는 중...</div>
+        
+        <div class="results" id="results">
+            <div id="cardsList"></div>
+            <div class="total">
+                <div class="total-label">총 합계</div>
+                <div class="total-number" id="totalSum">0</div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@1.3.1/dist/tf.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@teachablemachine/image@0.8/dist/teachablemachine-image.min.js"></script>
+
+    <script>
+        const MODEL_URL = 'https://teachablemachine.withgoogle.com/models/DZ34Dd5Ya/';
+        let model;
+        let isReady = false;
+        
+        const statusDiv = document.getElementById('status');
+        const cameraBtn = document.getElementById('cameraBtn');
+
+        // 모델 로딩
+        async function loadModel() {
+            try {
+                statusDiv.textContent = '모델 로딩 중... (10초 정도 걸립니다)';
+                
+                // TensorFlow.js가 로딩될 때까지 대기
+                while (typeof tf === 'undefined' || typeof tmImage === 'undefined') {
+                    await new Promise(resolve => setTimeout(resolve, 100));
+                }
+                
+                console.log('TensorFlow.js 로딩 완료');
+                
+                const modelURL = MODEL_URL + 'model.json';
+                const metadataURL = MODEL_URL + 'metadata.json';
+                
+                model = await tmImage.load(modelURL, metadataURL);
+                console.log('모델 로딩 완료!');
+                
+                statusDiv.textContent = '✅ 준비 완료! 사진을 찍어주세요';
+                statusDiv.style.background = '#c8e6c9';
+                statusDiv.style.color = '#2e7d32';
+                cameraBtn.disabled = false;
+                isReady = true;
+            } catch (error) {
+                console.error('모델 로딩 실패:', error);
+                statusDiv.innerHTML = '❌ 모델 로딩 실패<br><small>이 파일을 컴퓨터에 저장한 후 일반 브라우저(크롬/엣지)에서 열어주세요.</small>';
+                statusDiv.style.background = '#ffcdd2';
+                statusDiv.style.color = '#c62828';
+            }
+        }
+
+        // 이미지를 여러 영역으로 나누기
+        function createCardRegions(img) {
+            const canvas = document.createElement('canvas');
+            const ctx = canvas.getContext('2d');
+            const regions = [];
+            
+            const imgWidth = img.width;
+            const imgHeight = img.height;
+            
+            // 전체 이미지를 그리드로 나누기
+            const cols = 3;
+            const rows = 2;
+            const cellWidth = imgWidth / cols;
+            const cellHeight = imgHeight / rows;
+            
+            for (let row = 0; row < rows; row++) {
+                for (let col = 0; col < cols; col++) {
+                    canvas.width = cellWidth;
+                    canvas.height = cellHeight;
+                    
+                    ctx.drawImage(
+                        img,
+                        col * cellWidth, row * cellHeight, cellWidth, cellHeight,
+                        0, 0, cellWidth, cellHeight
+                    );
+                    
+                    const regionCanvas = document.createElement('canvas');
+                    regionCanvas.width = cellWidth;
+                    regionCanvas.height = cellHeight;
+                    const regionCtx = regionCanvas.getContext('2d');
+                    regionCtx.drawImage(canvas, 0, 0);
+                    
+                    regions.push(regionCanvas);
+                }
+            }
+            
+            // 전체 이미지도 추가
+            const fullCanvas = document.createElement('canvas');
+            fullCanvas.width = imgWidth;
+            fullCanvas.height = imgHeight;
+            const fullCtx = fullCanvas.getContext('2d');
+            fullCtx.drawImage(img, 0, 0);
+            regions.unshift(fullCanvas);
+            
+            return regions;
+        }
+
+        // Teachable Machine으로 예측
+        async function predictCard(canvas) {
+            const prediction = await model.predict(canvas);
+            
+            let maxProb = 0;
+            let predictedClass = null;
+            
+            for (const p of prediction) {
+                if (p.probability > maxProb) {
+                    maxProb = p.probability;
+                    predictedClass = p.className;
+                }
+            }
+            
+            return {
+                className: predictedClass,
+                probability: maxProb
+            };
+        }
+
+        // 월 이름에서 숫자 추출
+        function extractMonthNumber(className) {
+            const match = className.match(/(\d+)/);
+            if (match) {
+                return parseInt(match[1]);
+            }
+            return 0;
+        }
+
+        // 이미지 처리
+        async function processImage(imageElement) {
+            if (!isReady) {
+                alert('모델이 아직 로딩 중입니다. 잠시 후 다시 시도해주세요.');
+                return;
+            }
+            
+            const loading = document.getElementById('loading');
+            const results = document.getElementById('results');
+            const cardsList = document.getElementById('cardsList');
+            const totalSum = document.getElementById('totalSum');
+            
+            loading.style.display = 'block';
+            results.style.display = 'none';
+            cardsList.innerHTML = '';
+            
+            try {
+                const regions = createCardRegions(imageElement);
+                console.log(`${regions.length}개 영역 생성`);
+                
+                const recognizedCards = [];
+                const seenMonths = new Set();
+                
+                for (let i = 0; i < regions.length; i++) {
+                    const prediction = await predictCard(regions[i]);
+                    const monthNumber = extractMonthNumber(prediction.className);
+                    
+                    console.log(`영역 ${i}: ${prediction.className} (${(prediction.probability * 100).toFixed(1)}%)`);
+                    
+                    if (monthNumber > 0 && prediction.probability > 0.7 && !seenMonths.has(monthNumber)) {
+                        recognizedCards.push({
+                            month: monthNumber,
+                            className: prediction.className,
+                            probability: prediction.probability
+                        });
+                        seenMonths.add(monthNumber);
+                    }
+                }
+                
+                if (recognizedCards.length === 0) {
+                    alert('화투 카드를 인식할 수 없습니다.\n\n팁:\n- 카드를 더 가까이 촬영해주세요\n- 밝은 곳에서 촬영해주세요\n- 카드가 명확히 보이도록 해주세요');
+                    loading.style.display = 'none';
+                    return;
+                }
+                
+                recognizedCards.sort((a, b) => a.month - b.month);
+                
+                let total = 0;
+                recognizedCards.forEach((card, index) => {
+                    const cardDiv = document.createElement('div');
+                    cardDiv.className = 'card-item';
+                    cardDiv.innerHTML = `
+                        <span>카드 ${index + 1}: ${card.className} (${(card.probability * 100).toFixed(0)}%)</span>
+                        <span class="card-number">${card.month}월</span>
+                    `;
+                    cardsList.appendChild(cardDiv);
+                    total += card.month;
+                });
+                
+                totalSum.textContent = total;
+                results.style.display = 'block';
+                
+            } catch (error) {
+                console.error('에러:', error);
+                alert('처리 중 오류가 발생했습니다: ' + error.message);
+            } finally {
+                loading.style.display = 'none';
+            }
+        }
+
+        // 이미지 선택 이벤트
+        document.getElementById('imageInput').addEventListener('change', async function(e) {
+            const file = e.target.files[0];
+            if (!file) return;
+            
+            const preview = document.getElementById('preview');
+            const reader = new FileReader();
+            
+            reader.onload = async function(event) {
+                preview.src = event.target.result;
+                preview.style.display = 'block';
+                
+                preview.onload = async function() {
+                    await processImage(preview);
+                };
+            };
+            
+            reader.readAsDataURL(file);
+        });
+
+        // 페이지 로드 시 모델 로딩
+        window.addEventListener('load', async () => {
+            await loadModel();
+        });
+    </script>
+</body>
+</html>
