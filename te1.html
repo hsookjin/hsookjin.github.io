@@ -1,0 +1,302 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>화투 키오스크 AI</title>
+    <style>
+        body {
+            font-family: 'Suit', sans-serif;
+            background-color: #1a1a1a;
+            color: white;
+            text-align: center;
+            margin: 0;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden; /* 스크롤 방지 */
+        }
+
+        /* 상단 점수판 */
+        .score-board {
+            background: #2d3436;
+            padding: 15px;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.5);
+            z-index: 10;
+        }
+        .total-score {
+            font-size: 2.5rem;
+            font-weight: 900;
+            color: #00cec9;
+            margin: 0;
+        }
+        .last-card {
+            font-size: 1rem;
+            color: #aaa;
+            height: 20px;
+        }
+
+        /* 메인 카메라 영역 */
+        .camera-container {
+            flex: 1;
+            position: relative;
+            background: #000;
+            overflow: hidden;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+        
+        /* 실제 비디오는 화면에 꽉 차게 */
+        #webcam-container {
+            width: 100%;
+            height: 100%;
+            position: absolute;
+        }
+        canvas {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+
+        /* 가이드라인 (조준점) */
+        .guide-box {
+            position: absolute;
+            width: 250px;
+            height: 350px;
+            border: 4px solid rgba(255, 255, 255, 0.5);
+            border-radius: 20px;
+            box-shadow: 0 0 0 9999px rgba(0, 0, 0, 0.7); /* 박스 외부는 어둡게 */
+            z-index: 20;
+            pointer-events: none;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+        /* 조준점 십자가 */
+        .guide-box::after {
+            content: "+";
+            font-size: 50px;
+            color: rgba(255,255,255,0.3);
+        }
+        
+        /* 인식 성공 시 효과 */
+        .success-border {
+            border-color: #00cec9 !important;
+            box-shadow: 0 0 20px #00cec9, 0 0 0 9999px rgba(0, 0, 0, 0.7) !important;
+            transition: 0.2s;
+        }
+
+        /* 하단 컨트롤 */
+        .controls {
+            background: #2d3436;
+            padding: 20px;
+            z-index: 10;
+        }
+        button {
+            background: #ff7675;
+            color: white;
+            border: none;
+            padding: 15px 30px;
+            font-size: 1.2rem;
+            font-weight: bold;
+            border-radius: 50px;
+            box-shadow: 0 5px 15px rgba(255, 118, 117, 0.4);
+            cursor: pointer;
+        }
+        button:active { transform: scale(0.95); }
+
+        /* 인식된 리스트 (토스트 메시지처럼) */
+        #log {
+            position: absolute;
+            bottom: 100px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 80%;
+            z-index: 30;
+            pointer-events: none;
+        }
+        .log-item {
+            background: rgba(0,0,0,0.8);
+            color: #fff;
+            padding: 10px;
+            border-radius: 10px;
+            margin-top: 5px;
+            animation: fadeUp 0.3s ease-out;
+        }
+        @keyframes fadeUp {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+    </style>
+</head>
+<body>
+
+    <div class="score-board">
+        <div class="total-score" id="score-display">0점</div>
+        <div class="last-card" id="status-msg">카드를 박스 안에 맞춰주세요</div>
+    </div>
+
+    <div class="camera-container">
+        <div id="webcam-container"></div>
+        <div class="guide-box" id="guide-box"></div>
+        <div id="log"></div>
+    </div>
+
+    <div class="controls">
+        <button onclick="init()" id="start-btn">📷 시작하기</button>
+        <button onclick="resetScore()" style="background:#636e72; margin-left:10px;">🔄 리셋</button>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@latest/dist/tf.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@teachablemachine/image@latest/dist/teachablemachine-image.min.js"></script>
+    
+    <script>
+        const URL = "https://teachablemachine.withgoogle.com/models/DZ34Dd5Ya/";
+        let model, webcam, maxPredictions;
+        let isRunning = false;
+        let lastLabel = "";
+        let detectionCount = 0; // 연속 인식 횟수 체크 (오작동 방지)
+        let totalScore = 0;
+        let isCooldown = false; // 인식 후 쿨타임
+
+        // 오디오 효과 (띵동)
+        const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        function playSuccessSound() {
+            const osc = audioCtx.createOscillator();
+            const gainNode = audioCtx.createGain();
+            osc.connect(gainNode);
+            gainNode.connect(audioCtx.destination);
+            osc.frequency.value = 523.25; // 도
+            osc.type = 'sine';
+            gainNode.gain.setValueAtTime(0.1, audioCtx.currentTime);
+            gainNode.gain.exponentialRampToValueAtTime(0.00001, audioCtx.currentTime + 0.5);
+            osc.start();
+            osc.stop(audioCtx.currentTime + 0.5);
+        }
+
+        async function init() {
+            if(isRunning) return;
+            const btn = document.getElementById('start-btn');
+            btn.innerText = "로딩 중...";
+            
+            const modelURL = URL + "model.json";
+            const metadataURL = URL + "metadata.json";
+
+            try {
+                model = await tmImage.load(modelURL, metadataURL);
+                maxPredictions = model.getTotalClasses();
+
+                const flip = true; 
+                webcam = new tmImage.Webcam(400, 400, flip); // 정사각형으로 영상 받음
+                await webcam.setup({ facingMode: "environment" }); 
+                await webcam.play();
+                
+                // 기존 캔버스 지우고 새로 붙이기 (모바일 호환성)
+                const container = document.getElementById("webcam-container");
+                container.innerHTML = ""; 
+                container.appendChild(webcam.canvas); // 웹캠 화면을 화면에 붙임
+                
+                isRunning = true;
+                btn.style.display = "none"; // 시작 버튼 숨김
+                document.getElementById('status-msg').innerText = "준비 완료! 카드를 한 장씩 비춰주세요.";
+                window.requestAnimationFrame(loop);
+            } catch(e) {
+                alert("카메라를 켤 수 없습니다: " + e);
+                btn.innerText = "실패";
+            }
+        }
+
+        async function loop() {
+            webcam.update();
+            await predict();
+            window.requestAnimationFrame(loop);
+        }
+
+        async function predict() {
+            if (isCooldown) return; // 쿨타임이면 인식 안함
+
+            // 웹캠 전체 이미지를 모델에 넣고 예측
+            const prediction = await model.predict(webcam.canvas);
+            
+            // 가장 확률 높은 것 찾기
+            let highest = prediction[0];
+            for (let i = 1; i < maxPredictions; i++) {
+                if (prediction[i].probability > highest.probability) {
+                    highest = prediction[i];
+                }
+            }
+
+            // 조건: 확률이 90% 이상이어야 함
+            if (highest.probability > 0.90) {
+                // 같은 카드가 계속 인식되면 카운트 증가
+                if (highest.className === lastLabel) {
+                    detectionCount++;
+                } else {
+                    lastLabel = highest.className;
+                    detectionCount = 0;
+                }
+
+                // 20프레임(약 0.5초) 이상 연속으로 같은 카드로 인식되면 "확정"
+                if (detectionCount > 15) {
+                    confirmCard(highest.className);
+                }
+            } else {
+                detectionCount = 0; // 카드가 없거나 불확실하면 초기화
+            }
+        }
+
+        function confirmCard(label) {
+            // 숫자 추출
+            const score = extractNumber(label);
+            
+            // 점수 합산
+            totalScore += score;
+            updateUI(label, score);
+            playSuccessSound();
+
+            // 쿨타임 적용 (2초간 재인식 방지 - 카드 바꿀 시간 줌)
+            isCooldown = true;
+            detectionCount = 0;
+            
+            const guideBox = document.getElementById('guide-box');
+            guideBox.classList.add('success-border'); // 박스 색 변경
+            document.getElementById('status-msg').innerText = "다음 카드를 준비하세요...";
+
+            setTimeout(() => {
+                isCooldown = false;
+                guideBox.classList.remove('success-border');
+                document.getElementById('status-msg').innerText = "인식 중...";
+            }, 1500);
+        }
+
+        function updateUI(label, score) {
+            document.getElementById('score-display').innerText = totalScore + "점";
+            
+            // 로그 추가
+            const logDiv = document.getElementById('log');
+            const item = document.createElement('div');
+            item.className = 'log-item';
+            item.innerHTML = `🎴 <b>${label}</b> 인식! (+${score}점)`;
+            logDiv.prepend(item); // 최신 것이 위로
+
+            // 로그가 너무 많으면 삭제
+            if (logDiv.children.length > 3) {
+                logDiv.removeChild(logDiv.lastChild);
+            }
+        }
+
+        function resetScore() {
+            totalScore = 0;
+            document.getElementById('score-display').innerText = "0점";
+            document.getElementById('log').innerHTML = "";
+            document.getElementById('status-msg').innerText = "점수가 초기화되었습니다.";
+        }
+
+        function extractNumber(str) {
+            const num = str.replace(/[^0-9]/g, ""); 
+            return num ? parseInt(num) : 0; 
+        }
+    </script>
+</body>
+</html>
