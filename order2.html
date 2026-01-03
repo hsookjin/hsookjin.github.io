@@ -1,0 +1,461 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>평치기</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #4b6af1 0%, #43b9f3 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 16px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            padding: 40px;
+        }
+        
+        h1 {
+            color: #333;
+            margin-bottom: 30px;
+            text-align: center;
+            font-size: 2em;
+        }
+        
+        .input-section {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+            margin-bottom: 20px;
+        }
+        
+        .account-section {
+            grid-column: 1 / -1;
+            margin-bottom: 10px;
+        }
+        
+        .input-group {
+            display: flex;
+            flex-direction: column;
+        }
+        
+        label {
+            font-weight: 600;
+            margin-bottom: 8px;
+            color: #555;
+            font-size: 1.1em;
+        }
+        
+        input[type="text"] {
+            padding: 12px;
+            border: 2px solid #ddd;
+            border-radius: 8px;
+            font-size: 14px;
+            transition: border-color 0.3s;
+            width: 200px;
+        }
+        
+        input[type="text"]:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+        
+        textarea {
+            width: 100%;
+            height: 200px;
+            padding: 12px;
+            border: 2px solid #ddd;
+            border-radius: 8px;
+            font-family: 'Courier New', monospace;
+            font-size: 14px;
+            resize: vertical;
+            transition: border-color 0.3s;
+        }
+        
+        textarea:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+        
+        .btn-container {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        
+        button {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            padding: 15px 50px;
+            font-size: 1.1em;
+            font-weight: 600;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+        
+        button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 20px rgba(102, 126, 234, 0.4);
+        }
+        
+        button:active {
+            transform: translateY(0);
+        }
+        
+        .result-section {
+            margin-top: 20px;
+        }
+        
+        .result-box {
+            background: #f8f9fa;
+            border-radius: 8px;
+            padding: 20px;
+            border: 2px solid #e9ecef;
+        }
+        
+        .result-box h2 {
+            color: #333;
+            margin-bottom: 15px;
+            font-size: 1.3em;
+            border-bottom: 2px solid #667eea;
+            padding-bottom: 8px;
+        }
+        
+        .result-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-family: 'Courier New', monospace;
+            font-size: 13px;
+            background: white;
+        }
+        
+        .result-table th,
+        .result-table td {
+            padding: 8px 12px;
+            text-align: left;
+            border: 1px solid #ddd;
+        }
+        
+        .result-table th {
+            background: #667eea;
+            color: white;
+            font-weight: 600;
+        }
+        
+        .result-table tr:hover {
+            background: #f8f9fa;
+        }
+        
+        .copy-btn {
+            margin-top: 15px;
+            background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
+            padding: 10px 30px;
+            font-size: 0.95em;
+        }
+        
+        .copy-btn:hover {
+            box-shadow: 0 8px 20px rgba(40, 167, 69, 0.4);
+        }
+        
+        .count {
+            color: #667eea;
+            font-weight: 600;
+        }
+        
+        @media (max-width: 768px) {
+            .input-section {
+                grid-template-columns: 1fr;
+            }
+            
+            .container {
+                padding: 20px;
+            }
+            
+            h1 {
+                font-size: 1.5em;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🧮 평치기 계산</h1>
+        
+        <div class="account-section">
+            <div class="input-group">
+                <label for="accountInput">계좌번호</label>
+                <input type="text" id="accountInput" placeholder="60" value="60">
+            </div>
+        </div>
+        
+        <div class="input-section">
+            <div class="input-group">
+                <label for="sellInput">매도 주문 입력</label>
+                <textarea id="sellInput" placeholder="LOC $44.31 511&#10;LOC $44.31 505&#10;LOC $43.77 510">LOC $44.31 511
+LOC $44.31 505
+LOC $43.77 510</textarea>
+            </div>
+            
+            <div class="input-group">
+                <label for="buyInput">매수 주문 입력</label>
+                <textarea id="buyInput" placeholder="LOC $43.24 532">LOC $43.24	532</textarea>
+            </div>
+        </div>
+        
+        <div class="btn-container">
+            <button onclick="processOrders()">🚀 주문 처리하기</button>
+        </div>
+        
+        <div class="result-section">
+            <div class="result-box">
+                <h2>📊 통합 주문 결과 <span class="count" id="totalCount"></span></h2>
+                <table class="result-table" id="resultTable">
+                    <thead>
+                        <tr>
+                            <th>주문</th>
+                            <th>계좌번호</th>
+                            <th>종목코드</th>
+                            <th>구분</th>
+                            <th>거래 방법</th>
+                            <th>주문가</th>
+                            <th>주문량</th>
+                        </tr>
+                    </thead>
+                    <tbody id="resultBody">
+                        <tr>
+                            <td colspan="7" style="text-align: center; padding: 20px;">주문 처리하기 버튼을 클릭하세요...</td>
+                        </tr>
+                    </tbody>
+                </table>
+                <div style="text-align: center;">
+                    <button class="copy-btn" onclick="copyToClipboard()">📋 Excel용 복사하기</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        class Order {
+            constructor(type, price, quantity, side) {
+                this.type = type;
+                this.price = parseFloat(price) || 0.0;
+                this.quantity = parseInt(quantity);
+                this.side = side;
+            }
+        }
+
+        function parseData(textData, side) {
+            const orders = [];
+            const lines = textData.trim().split('\n');
+            
+            for (const line of lines) {
+                const parts = line.trim().split(/\s+/);
+                if (parts.length >= 3) {
+                    const oType = parts[0];
+                    const oPrice = parts[1].replace('$', '').replace(/,/g, '');
+                    const oQty = parseInt(parts[2].replace(/,/g, ''));
+                    
+                    // MOC 병합 로직
+                    if (oType === "MOC") {
+                        const existingMoc = orders.find(o => o.type === "MOC");
+                        if (existingMoc) {
+                            existingMoc.quantity += oQty;
+                            continue;
+                        }
+                    }
+                    
+                    orders.push(new Order(oType, oPrice, oQty, side));
+                }
+            }
+            return orders;
+        }
+
+        function removeDuplicates(sellOrders, buyOrders) {
+            if (!sellOrders.length || !buyOrders.length) {
+                return { sells: sellOrders, buys: buyOrders };
+            }
+
+            const buyOrder = { ...buyOrders[0] };
+            const originalBuyQuantity = buyOrder.quantity;
+
+            const filteredSellOrders = [];
+            const newSellOrders = [];
+            const newBuyOrders = [];
+
+            let sellMocOrder = null;
+            let hasMoc = false;
+
+            // 1. 매도 주문 분류
+            for (const sell of sellOrders) {
+                if (sell.type === "MOC") {
+                    sellMocOrder = sell;
+                    hasMoc = true;
+                } else if (sell.price <= buyOrder.price) {
+                    filteredSellOrders.push(sell);
+                } else {
+                    newSellOrders.push(sell);
+                }
+            }
+
+            if (!hasMoc && !filteredSellOrders.length) {
+                return { sells: sellOrders, buys: buyOrders };
+            }
+
+            // 2. MOC 처리
+            if (hasMoc) {
+                if (sellMocOrder.quantity > buyOrder.quantity) {
+                    newSellOrders.push(new Order("MOC", 0.0, sellMocOrder.quantity - buyOrder.quantity, "매도"));
+                    buyOrder.quantity = 0;
+                } else if (sellMocOrder.quantity === buyOrder.quantity) {
+                    buyOrder.quantity = 0;
+                } else {
+                    buyOrder.quantity -= sellMocOrder.quantity;
+                    if (!filteredSellOrders.length) {
+                        newSellOrders.push(new Order("LOC", buyOrder.price + 0.01, sellMocOrder.quantity, "매도"));
+                    }
+                }
+            }
+
+            // 3. 충돌 LOC 처리
+            filteredSellOrders.sort((a, b) => a.price - b.price);
+
+            for (const sell of filteredSellOrders) {
+                if (buyOrder.quantity === 0) {
+                    newSellOrders.push(sell);
+                    continue;
+                }
+
+                if (sell.quantity >= buyOrder.quantity) {
+                    newBuyOrders.push(new Order("LOC", sell.price - 0.01, buyOrder.quantity, "매수"));
+                    
+                    if (sell.quantity > buyOrder.quantity) {
+                        newSellOrders.push(new Order("LOC", sell.price, sell.quantity - buyOrder.quantity, "매도"));
+                    }
+                    
+                    buyOrder.quantity = 0;
+                } else {
+                    newBuyOrders.push(new Order("LOC", sell.price - 0.01, sell.quantity, "매수"));
+                    buyOrder.quantity -= sell.quantity;
+                }
+            }
+
+            // 4. 마무리 처리
+            if (buyOrder.quantity !== 0) {
+                newBuyOrders.push(new Order("LOC", buyOrder.price, buyOrder.quantity, "매수"));
+                
+                const matchedSellQty = filteredSellOrders.reduce((sum, o) => sum + o.quantity, 0);
+                if (matchedSellQty !== 0) {
+                    newSellOrders.push(new Order("LOC", buyOrder.price + 0.01, matchedSellQty, "매도"));
+                }
+            } else {
+                newSellOrders.push(new Order("LOC", buyOrder.price + 0.01, originalBuyQuantity, "매도"));
+            }
+
+            // 5. 정렬
+            newSellOrders.sort((a, b) => b.price - a.price);
+            newBuyOrders.sort((a, b) => b.price - a.price);
+
+            return { sells: newSellOrders, buys: newBuyOrders };
+        }
+
+        function processOrders() {
+            const sellInput = document.getElementById('sellInput').value;
+            const buyInput = document.getElementById('buyInput').value;
+            const accountNumber = document.getElementById('accountInput').value;
+
+            const sellOrders = parseData(sellInput, "매도");
+            const buyOrders = parseData(buyInput, "매수");
+
+            const result = removeDuplicates(sellOrders, buyOrders);
+
+            // 모든 주문을 하나의 배열로 통합
+            const allOrders = [];
+            
+            // 매수 주문 추가
+            result.buys.forEach(order => {
+                allOrders.push({
+                    주문: "TRUE",
+                    계좌번호: accountNumber,
+                    종목코드: "SOXL",
+                    구분: "매수",
+                    거래방법: "LOC",
+                    주문가: order.price,
+                    주문량: order.quantity
+                });
+            });
+            
+            // 매도 주문 추가
+            result.sells.forEach(order => {
+                allOrders.push({
+                    주문: "TRUE",
+                    계좌번호: accountNumber,
+                    종목코드: "SOXL",
+                    구분: "매도",
+                    거래방법: "LOC",
+                    주문가: order.price,
+                    주문량: order.quantity
+                });
+            });
+
+            // 테이블 렌더링
+            const tbody = document.getElementById('resultBody');
+            const totalCount = document.getElementById('totalCount');
+            
+            totalCount.textContent = `(${allOrders.length}개)`;
+            
+            if (allOrders.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="7" style="text-align: center; padding: 20px;">주문 없음</td></tr>';
+            } else {
+                tbody.innerHTML = allOrders.map(order => `
+                    <tr>
+                        <td>${order.주문}</td>
+                        <td>${order.계좌번호}</td>
+                        <td>${order.종목코드}</td>
+                        <td>${order.구분}</td>
+                        <td>${order.거래방법}</td>
+                        <td>${order.주문가.toFixed(2)}</td>
+                        <td>${order.주문량}</td>
+                    </tr>
+                `).join('');
+            }
+        }
+
+        function copyToClipboard() {
+            const tbody = document.getElementById('resultBody');
+            const rows = tbody.querySelectorAll('tr');
+            
+            let clipboardText = '';
+            
+            rows.forEach(row => {
+                const cells = row.querySelectorAll('td');
+                const rowData = Array.from(cells).map(cell => cell.textContent.trim()).join('\t');
+                clipboardText += rowData + '\n';
+            });
+            
+            navigator.clipboard.writeText(clipboardText).then(() => {
+                alert('Excel에 붙여넣기 할 수 있도록 복사되었습니다! ✅');
+            }).catch(err => {
+                alert('복사 실패: ' + err);
+            });
+        }
+
+        // 페이지 로드 시 자동 실행
+        window.onload = function() {
+            processOrders();
+        };
+    </script>
+</body>
+</html>
