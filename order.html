@@ -153,14 +153,12 @@
         <div class="input-section">
             <div class="input-group">
                 <label for="sellInput">매도 주문 입력</label>
-                <textarea id="sellInput" placeholder="LOC $44.31 511&#10;LOC $44.31 505&#10;LOC $43.77 510">LOC $44.31 511
-LOC $44.31 505
-LOC $43.77 510</textarea>
+                <textarea id="sellInput" placeholder="LOC $44.31 511&#10;LOC $44.31 505&#10;LOC $43.77 510"></textarea>
             </div>
             
             <div class="input-group">
                 <label for="buyInput">매수 주문 입력</label>
-                <textarea id="buyInput" placeholder="LOC $43.24 532">LOC $43.24	532</textarea>
+                <textarea id="buyInput" placeholder="LOC $43.24 532"></textarea>
             </div>
         </div>
         
@@ -343,7 +341,25 @@ LOC $43.77 510</textarea>
 
         // 페이지 로드 시 자동 실행
         window.onload = function() {
-            processOrders();
+            const urlParams = new URLSearchParams(window.location.search);
+            
+            // 'sell'과 'buy' 파라미터에서 데이터를 가져옴
+            const sellData = urlParams.get('sell');
+            const buyData = urlParams.get('buy');
+
+            if (sellData) {
+                // 구분자('|')를 줄바꿈('\n')으로 바꿔서 textarea에 입력
+                document.getElementById('sellInput').value = sellData.split('|').join('\n');
+            }
+            
+            if (buyData) {
+                document.getElementById('buyInput').value = buyData.split('|').join('\n');
+            }
+
+            // 데이터가 들어왔으면 자동으로 계산 실행
+            if (sellData || buyData) {
+                processOrders();
+            }
         };
     </script>
 </body>
