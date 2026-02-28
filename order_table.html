@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>퉁치기 v.260228</title>
+    <title>주문표 생성</title>
     <style>
         * {
             margin: 0;
@@ -38,7 +38,12 @@
             display: grid;
             grid-template-columns: 1fr 1fr;
             gap: 20px;
-            margin-bottom: 30px;
+            margin-bottom: 20px;
+        }
+        
+        .account-section {
+            grid-column: 1 / -1;
+            margin-bottom: 10px;
         }
         
         .input-group {
@@ -51,6 +56,20 @@
             margin-bottom: 8px;
             color: #555;
             font-size: 1.1em;
+        }
+        
+        input[type="text"] {
+            padding: 12px;
+            border: 2px solid #ddd;
+            border-radius: 8px;
+            font-size: 14px;
+            transition: border-color 0.3s;
+            width: 200px;
+        }
+        
+        input[type="text"]:focus {
+            outline: none;
+            border-color: #667eea;
         }
         
         textarea {
@@ -76,7 +95,7 @@
         }
         
         button {
-            background: linear-gradient(135deg, #4d4d4f 0%, #434344 100%);
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             color: white;
             border: none;
             padding: 15px 50px;
@@ -97,9 +116,7 @@
         }
         
         .result-section {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 20px;
+            margin-top: 20px;
         }
         
         .result-box {
@@ -117,12 +134,40 @@
             padding-bottom: 8px;
         }
         
-        .result-content {
+        .result-table {
+            width: 100%;
+            border-collapse: collapse;
             font-family: 'Courier New', monospace;
-            font-size: 14px;
-            line-height: 1.6;
-            color: #333;
-            white-space: pre-wrap;
+            font-size: 13px;
+            background: white;
+        }
+        
+        .result-table th,
+        .result-table td {
+            padding: 8px 12px;
+            text-align: left;
+            border: 1px solid #ddd;
+        }
+        
+        .result-table th {
+            background: #667eea;
+            color: white;
+            font-weight: 600;
+        }
+        
+        .result-table tr:hover {
+            background: #f8f9fa;
+        }
+        
+        .copy-btn {
+            margin-top: 15px;
+            background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
+            padding: 10px 30px;
+            font-size: 0.95em;
+        }
+        
+        .copy-btn:hover {
+            box-shadow: 0 8px 20px rgba(40, 167, 69, 0.4);
         }
         
         .count {
@@ -131,8 +176,7 @@
         }
         
         @media (max-width: 768px) {
-            .input-section,
-            .result-section {
+            .input-section {
                 grid-template-columns: 1fr;
             }
             
@@ -148,17 +192,26 @@
 </head>
 <body>
     <div class="container">
-        <h1>🧮 퉁치기 계산</h1>
+        <h1>✏︎ 주문표 생성</h1>
+        
+        <div class="account-section">
+            <div class="input-group">
+                <label for="accountInput">계좌번호</label>
+                <input type="text" id="accountInput" placeholder="60" value="60">
+            </div>
+        </div>
         
         <div class="input-section">
             <div class="input-group">
                 <label for="sellInput">매도 주문 입력</label>
-                <textarea id="sellInput" placeholder="LOC $44.31 511&#10;LOC $44.31 505&#10;MOC $0 510"></textarea>
+                <textarea id="sellInput" placeholder="LOC $44.31 511&#10;LOC $44.31 505&#10;LOC $43.77 510">LOC $44.31 511
+LOC $44.31 505
+LOC $43.77 510</textarea>
             </div>
             
             <div class="input-group">
                 <label for="buyInput">매수 주문 입력</label>
-                <textarea id="buyInput" placeholder="LOC $43.24 532"></textarea>
+                <textarea id="buyInput" placeholder="LOC $43.24 532">LOC $43.24	532</textarea>
             </div>
         </div>
         
@@ -168,13 +221,28 @@
         
         <div class="result-section">
             <div class="result-box">
-                <h2>매수 주문 <span class="count" id="buyCount"></span></h2>
-                <div class="result-content" id="buyResult">결과가 여기에 표시됩니다.</div>
-            </div>
-            
-            <div class="result-box">
-                <h2>매도 주문 <span class="count" id="sellCount"></span></h2>
-                <div class="result-content" id="sellResult">결과가 여기에 표시됩니다.</div>
+                <h2>📊 통합 주문 결과 <span class="count" id="totalCount"></span></h2>
+                <table class="result-table" id="resultTable">
+                    <thead>
+                        <tr>
+                            <th>주문</th>
+                            <th>계좌번호</th>
+                            <th>종목코드</th>
+                            <th>구분</th>
+                            <th>거래 방법</th>
+                            <th>주문가</th>
+                            <th>주문량</th>
+                        </tr>
+                    </thead>
+                    <tbody id="resultBody">
+                        <tr>
+                            <td colspan="7" style="text-align: center; padding: 20px;">주문 처리하기 버튼을 클릭하세요...</td>
+                        </tr>
+                    </tbody>
+                </table>
+                <div style="text-align: center;">
+                    <button class="copy-btn" onclick="copyToClipboard()">📋 Excel용 복사하기</button>
+                </div>
             </div>
         </div>
     </div>
@@ -220,7 +288,7 @@
                 return { sells: sellOrders, buys: buyOrders };
             }
 
-            const buyOrder = { ...buyOrders[0] }; // 복사
+            const buyOrder = { ...buyOrders[0] };
             const originalBuyQuantity = buyOrder.quantity;
 
             const filteredSellOrders = [];
@@ -306,37 +374,82 @@
         function processOrders() {
             const sellInput = document.getElementById('sellInput').value;
             const buyInput = document.getElementById('buyInput').value;
+            const accountNumber = document.getElementById('accountInput').value;
 
             const sellOrders = parseData(sellInput, "매도");
             const buyOrders = parseData(buyInput, "매수");
 
             const result = removeDuplicates(sellOrders, buyOrders);
 
-            // 매수 결과 표시
-            const buyResult = document.getElementById('buyResult');
-            const buyCount = document.getElementById('buyCount');
-            buyCount.textContent = `(${result.buys.length}개)`;
+            // 모든 주문을 하나의 배열로 통합
+            const allOrders = [];
             
-            if (result.buys.length === 0) {
-                buyResult.textContent = '주문 없음';
-            } else {
-                buyResult.textContent = result.buys.map(o => 
-                    `${o.type} $${o.price.toFixed(2)} ${o.quantity}`
-                ).join('\n');
-            }
+            // 매수 주문 추가
+            result.buys.forEach(order => {
+                allOrders.push({
+                    주문: "TRUE",
+                    계좌번호: accountNumber,
+                    종목코드: "SOXL",
+                    구분: "매수",
+                    거래방법: "LOC",
+                    주문가: order.price,
+                    주문량: order.quantity
+                });
+            });
+            
+            // 매도 주문 추가
+            result.sells.forEach(order => {
+                allOrders.push({
+                    주문: "TRUE",
+                    계좌번호: accountNumber,
+                    종목코드: "SOXL",
+                    구분: "매도",
+                    거래방법: "LOC",
+                    주문가: order.price,
+                    주문량: order.quantity
+                });
+            });
 
-            // 매도 결과 표시
-            const sellResult = document.getElementById('sellResult');
-            const sellCount = document.getElementById('sellCount');
-            sellCount.textContent = `(${result.sells.length}개)`;
+            // 테이블 렌더링
+            const tbody = document.getElementById('resultBody');
+            const totalCount = document.getElementById('totalCount');
             
-            if (result.sells.length === 0) {
-                sellResult.textContent = '주문 없음';
+            totalCount.textContent = `(${allOrders.length}개)`;
+            
+            if (allOrders.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="7" style="text-align: center; padding: 20px;">주문 없음</td></tr>';
             } else {
-                sellResult.textContent = result.sells.map(o => 
-                    `${o.type} $${o.price.toFixed(2)} ${o.quantity}`
-                ).join('\n');
+                tbody.innerHTML = allOrders.map(order => `
+                    <tr>
+                        <td>${order.주문}</td>
+                        <td>${order.계좌번호}</td>
+                        <td>${order.종목코드}</td>
+                        <td>${order.구분}</td>
+                        <td>${order.거래방법}</td>
+                        <td>${order.주문가.toFixed(2)}</td>
+                        <td>${order.주문량}</td>
+                    </tr>
+                `).join('');
             }
+        }
+
+        function copyToClipboard() {
+            const tbody = document.getElementById('resultBody');
+            const rows = tbody.querySelectorAll('tr');
+            
+            let clipboardText = '';
+            
+            rows.forEach(row => {
+                const cells = row.querySelectorAll('td');
+                const rowData = Array.from(cells).map(cell => cell.textContent.trim()).join('\t');
+                clipboardText += rowData + '\n';
+            });
+            
+            navigator.clipboard.writeText(clipboardText).then(() => {
+               // alert('Excel에 붙여넣기 할 수 있도록 복사되었습니다! ✅');
+            }).catch(err => {
+                alert('복사 실패: ' + err);
+            });
         }
 
         // 페이지 로드 시 자동 실행
